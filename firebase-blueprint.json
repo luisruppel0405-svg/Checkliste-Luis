@@ -1,0 +1,40 @@
+{
+  "entities": {
+    "Project": {
+      "title": "Rental Project",
+      "description": "Represents a rental unit termination and re-tenanting process.",
+      "type": "object",
+      "properties": {
+        "apartmentName": { "type": "string" },
+        "currentTenant": { "type": "string" },
+        "owner": { "type": "string" },
+        "ownerEmail": { "type": "string", "format": "email" },
+        "terminationDate": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" },
+        "createdBy": { "type": "string" },
+        "isArchived": { "type": "boolean" },
+        "steps": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "id": { "type": "string" },
+              "label": { "type": "string" },
+              "isCompleted": { "type": "boolean" },
+              "system": { "type": "string" },
+              "description": { "type": "string" }
+            }
+          }
+        }
+      },
+      "required": ["apartmentName", "currentTenant", "owner", "ownerEmail", "terminationDate", "createdAt", "createdBy", "steps"]
+    }
+  },
+  "firestore": {
+    "/projects/{projectId}": {
+      "schema": "Project",
+      "description": "Collection of all rental process projects."
+    }
+  }
+}

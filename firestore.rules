@@ -1,0 +1,68 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default Deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // Global Helpers
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // PROJECT VALIDATION (Shape and Types)
+    function isValidProject(data) {
+      return data.keys().hasAll(['apartmentName', 'currentTenant', 'owner', 'ownerEmail', 'terminationDate', 'createdAt', 'createdBy', 'steps', 'isArchived'])
+        && data.keys().size() <= 11 
+        && data.apartmentName is string && data.apartmentName.size() <= 200
+        && data.currentTenant is string && data.currentTenant.size() <= 100
+        && data.owner is string && data.owner.size() <= 100
+        && data.ownerEmail is string && data.ownerEmail.size() <= 256
+        && data.terminationDate is string && data.terminationDate.size() <= 20
+        && data.isArchived is bool
+        && data.steps is list && data.steps.size() == 10;
+    }
+
+    match /projects/{projectId} {
+      allow get, list: if isSignedIn();
+      
+      allow create: if isSignedIn() 
+        && isValidId(projectId)
+        && isValidProject(incoming())
+        && incoming().createdBy == request.auth.uid
+        && incoming().createdAt == request.time
+        && incoming().isArchived == false;
+
+      allow update: if isSignedIn()
+        && isValidProject(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().createdBy == existing().createdBy
+        && (
+          // Action: Toggle Step
+          incoming().diff(existing()).affectedKeys().hasOnly(['steps', 'updatedAt'])
+          || 
+          // Action: Archive
+          incoming().diff(existing()).affectedKeys().hasOnly(['isArchived', 'updatedAt'])
+          ||
+          // Action: Edit Detail
+          incoming().diff(existing()).affectedKeys().hasAny(['apartmentName', 'currentTenant', 'owner', 'ownerEmail', 'terminationDate', 'updatedAt'])
+        )
+        && (!incoming().keys().contains('updatedAt') || incoming().updatedAt == request.time);
+
+      allow delete: if isSignedIn();
+    }
+  }
+}
